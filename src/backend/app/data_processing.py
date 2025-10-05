@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import base64
+import io
 from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
-from .models import IngestionSummary, NumericSummary
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+from .models import IngestionSummary, NumericSummary, VisualizationArtifact
 
 
 class DataProcessor:
@@ -29,6 +37,7 @@ class DataProcessor:
         categorical_summary = self._build_categorical_summary(df)
         descriptive_stats = self._build_describe(df)
         numeric_histograms = self._build_histograms(df)
+        visualizations = self._build_visualizations(df)
 
         return IngestionSummary(
             record_count=int(len(df)),
@@ -39,6 +48,7 @@ class DataProcessor:
             categorical_summary=categorical_summary,
             descriptive_stats=descriptive_stats,
             numeric_histograms=numeric_histograms,
+            visualizations=visualizations,
         )
 
     def _build_schema(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
@@ -128,3 +138,113 @@ class DataProcessor:
         if value is None or pd.isna(value):
             return None
         return float(value)
+
+    def _build_visualizations(self, df: pd.DataFrame) -> List[VisualizationArtifact]:
+        visualizations: List[VisualizationArtifact] = []
+        if df.empty:
+            return visualizations
+
+        sns.set_theme(style="whitegrid")
+
+        for column in df.columns:
+            series = df[column].dropna()
+            if series.empty:
+                continue
+
+            try:
+                if pd.api.types.is_numeric_dtype(series):
+                    artifact = self._visualize_numeric(column, series)
+                elif pd.api.types.is_datetime64_any_dtype(series) or self._looks_like_datetime(series):
+                    artifact = self._visualize_datetime(column, series)
+                else:
+                    artifact = self._visualize_categorical(column, series)
+            except Exception:
+                continue
+
+            if artifact:
+                visualizations.append(artifact)
+
+        return visualizations
+
+    def _encode_figure(self, fig: plt.Figure) -> str:
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png", bbox_inches="tight")
+        buffer.seek(0)
+        encoded = base64.b64encode(buffer.read()).decode("ascii")
+        plt.close(fig)
+        return encoded
+
+    def _visualize_numeric(self, column: str, series: pd.Series) -> VisualizationArtifact:
+        fig, ax = plt.subplots(figsize=(4, 3))
+        bins = min(30, max(5, series.nunique()))
+        sns.histplot(series, bins=bins, kde=False, ax=ax, color="#2563eb")
+        ax.set_title(f"{column} distribution")
+        ax.set_xlabel(column)
+        ax.set_ylabel("Frequency")
+        encoded = self._encode_figure(fig)
+        description = "연속형 수치의 빈도 분포"
+        return VisualizationArtifact(
+            column=column,
+            chart_type="histogram",
+            title=f"{column} Distribution",
+            image_base64=encoded,
+            description=description,
+        )
+
+    def _visualize_categorical(self, column: str, series: pd.Series) -> VisualizationArtifact | None:
+        value_counts = (
+            series.astype("string")
+            .replace({pd.NA: "(null)"})
+            .value_counts(dropna=False)
+            .head(self.TOP_CATEGORIES)
+        )
+        if value_counts.empty:
+            return None
+
+        fig, ax = plt.subplots(figsize=(4, 3))
+        sns.barplot(x=value_counts.values, y=value_counts.index, ax=ax, color="#2563eb")
+        ax.set_title(f"Top {self.TOP_CATEGORIES} values for {column}")
+        ax.set_xlabel("Frequency")
+        ax.set_ylabel(column)
+        encoded = self._encode_figure(fig)
+        description = "범주형 데이터의 상위 값 빈도"
+        return VisualizationArtifact(
+            column=column,
+            chart_type="bar",
+            title=f"Top values for {column}",
+            image_base64=encoded,
+            description=description,
+        )
+
+    def _visualize_datetime(self, column: str, series: pd.Series) -> VisualizationArtifact | None:
+        datetime_series = pd.to_datetime(series, errors="coerce").dropna()
+        if datetime_series.empty:
+            return None
+
+        grouped = datetime_series.dt.to_period("D").value_counts().sort_index()
+        if grouped.empty:
+            return None
+
+        fig, ax = plt.subplots(figsize=(4, 3))
+        grouped.index = grouped.index.to_timestamp()
+        sns.lineplot(x=grouped.index, y=grouped.values, ax=ax, marker="o", color="#2563eb")
+        ax.set_title(f"{column} trend")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Frequency")
+        fig.autofmt_xdate()
+        encoded = self._encode_figure(fig)
+        description = "날짜/시간 데이터의 일별 발생 추세"
+        return VisualizationArtifact(
+            column=column,
+            chart_type="line",
+            title=f"{column} Trend",
+            image_base64=encoded,
+            description=description,
+        )
+
+    def _looks_like_datetime(self, series: pd.Series) -> bool:
+        if series.empty:
+            return False
+        sample = series.astype("string").head(20)
+        parsed = pd.to_datetime(sample, errors="coerce", format="mixed")
+        return parsed.notna().sum() >= max(3, len(sample) // 2)

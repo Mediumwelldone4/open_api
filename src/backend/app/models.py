@@ -121,6 +121,14 @@ class NumericSummary(BaseModel):
     maximum: Optional[float]
 
 
+class VisualizationArtifact(BaseModel):
+    column: str
+    chart_type: str
+    title: str
+    image_base64: str
+    description: str | None = None
+
+
 class IngestionSummary(BaseModel):
     record_count: Optional[int]
     schema_fields: list[str] = Field(default_factory=list)
@@ -130,6 +138,7 @@ class IngestionSummary(BaseModel):
     categorical_summary: Dict[str, list[Dict[str, Any]]] = Field(default_factory=dict)
     descriptive_stats: Dict[str, Dict[str, float]] = Field(default_factory=dict)
     numeric_histograms: Dict[str, list[Dict[str, Any]]] = Field(default_factory=dict)
+    visualizations: list[VisualizationArtifact] = Field(default_factory=list)
 
 
 class IngestionJob(BaseModel):

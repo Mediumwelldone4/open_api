@@ -3,3 +3,5 @@ uvicorn[standard]==0.27.1
 pydantic-settings==2.2.1
 openai==1.28.0
 pandas==2.2.2
+matplotlib==3.8.4
+seaborn==0.13.2
