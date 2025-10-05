@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 import pytest
 from fastapi import status
@@ -7,12 +8,15 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app
 from app.models import (
     ConnectionConfig,
+    ConnectionRecord,
     ConnectionTestResult,
     IngestionSummary,
     NumericSummary,
 )
 from app.repositories import InMemoryConnectionRepository
 from app.routers import get_analysis_service, get_repository
+from app.ai import AnalysisService
+from app.settings import get_settings
 
 pytestmark = pytest.mark.anyio("asyncio")
 
@@ -111,3 +115,41 @@ async def test_analysis_requires_question() -> None:
         response = await client.post(f"/connections/{record.id}/analysis", json={})
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+async def test_analysis_service_provides_stub_without_api_key(monkeypatch) -> None:
+    monkeypatch.setenv("OPEN_DATA_OPENAI_API_KEY", "")
+    get_settings.cache_clear()
+
+    config = ConnectionConfig(
+        portal_name="Seoul",
+        dataset_id="traffic",
+        base_url="https://example.com",
+        path="/traffic",
+    )
+    summary = IngestionSummary(
+        record_count=1200,
+        schema_fields=["timestamp", "speed", "volume"],
+        sample_records=[{"timestamp": "2024-01-01T00:00:00Z", "speed": 32, "volume": 10}],
+        numeric_summary={
+            "speed": NumericSummary(mean=40.0, minimum=12.0, maximum=88.0),
+        },
+    )
+    record = ConnectionRecord(
+        id=uuid4(),
+        config=config,
+        created_at=datetime.utcnow(),
+        updated_at=None,
+        last_test_result=None,
+        last_ingested_at=datetime.utcnow(),
+        last_ingestion_summary=summary,
+    )
+
+    service = AnalysisService()
+    try:
+        answer = await service.analyze(record, "속도가 가장 높은 시간대를 알려줘")
+    finally:
+        get_settings.cache_clear()
+
+    assert "오프라인 모드" in answer
+    assert "OPEN_DATA_OPENAI_API_KEY" in answer

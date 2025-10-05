@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from textwrap import dedent
 
 from fastapi import HTTPException, status
@@ -8,6 +9,9 @@ from openai import OpenAI
 
 from .models import ConnectionRecord, IngestionSummary
 from .settings import get_settings
+
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = dedent(
     """
@@ -24,12 +28,18 @@ class AnalysisService:
 
     def __init__(self) -> None:
         settings = get_settings()
-        if settings.openai_api_key is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="OpenAI API key is not configured. Set OPEN_DATA_OPENAI_API_KEY.",
+        self._client: OpenAI | None = None
+        self._use_stub = False
+
+        api_key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
+
+        if api_key.strip():
+            self._client = OpenAI(api_key=api_key)
+        else:
+            self._use_stub = True
+            logger.warning(
+                "OPEN_DATA_OPENAI_API_KEY is not configured; falling back to offline insight stubs.",
             )
-        self._client = OpenAI(api_key=settings.openai_api_key.get_secret_value())
 
     async def analyze(self, connection: ConnectionRecord, question: str) -> str:
         if not connection.last_ingestion_summary:
@@ -38,10 +48,16 @@ class AnalysisService:
                 detail="No ingestion summary available. Run data ingestion first.",
             )
 
+        if self._use_stub:
+            return self._generate_stub_response(connection, question)
+
         payload = self._build_prompt(connection.last_ingestion_summary, question)
         return await asyncio.to_thread(self._run_completion, payload)
 
     def _run_completion(self, prompt: str) -> str:
+        if self._client is None:
+            raise RuntimeError("AnalysisService run called without OpenAI client")
+
         try:
             response = self._client.responses.create(
                 model="gpt-4.1-mini",
@@ -61,6 +77,34 @@ class AnalysisService:
                 ],
             )
             return completion.choices[0].message.content or ""
+
+    def _generate_stub_response(self, connection: ConnectionRecord, question: str) -> str:
+        summary = connection.last_ingestion_summary
+        assert summary is not None  # enforce upstream check
+
+        bullet_points: list[str] = []
+        if summary.record_count is not None:
+            bullet_points.append(f"- 기록 수: 약 {summary.record_count}건")
+
+        if summary.schema_fields:
+            fields_preview = ", ".join(summary.schema_fields[:5])
+            if len(summary.schema_fields) > 5:
+                fields_preview += " 외"
+            bullet_points.append(f"- 주요 필드: {fields_preview}")
+
+        if summary.numeric_summary:
+            metrics = ", ".join(sorted(summary.numeric_summary.keys())[:5])
+            bullet_points.append(f"- 수치 지표 필드: {metrics}")
+
+        bullet_text = "\n".join(bullet_points) if bullet_points else "- 수집된 요약 정보가 충분하지 않습니다."
+
+        return (
+            "[오프라인 모드] OpenAI API 키가 설정되지 않아 기본 분석 요약을 제공합니다.\n"
+            f"데이터셋: {connection.config.portal_name} / {connection.config.dataset_id}\n"
+            f"질문 요약: {question.strip()}\n"
+            f"요약 정보:\n{bullet_text}\n"
+            "실제 AI 기반 분석을 사용하려면 OPEN_DATA_OPENAI_API_KEY 환경 변수를 설정하세요."
+        )
 
     def _build_prompt(self, summary: IngestionSummary, question: str) -> str:
         schema_lines = []
