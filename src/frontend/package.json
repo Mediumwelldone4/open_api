@@ -1,0 +1,31 @@
+{
+  "name": "open-data-insight-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "next": "14.2.3",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "recharts": "2.8.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.4.2",
+    "@testing-library/react": "14.2.1",
+    "@testing-library/user-event": "14.5.2",
+    "@types/node": "20.12.7",
+    "@types/react": "18.2.21",
+    "@types/react-dom": "18.2.7",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.3",
+    "jsdom": "^27.0.0",
+    "typescript": "5.4.3",
+    "vitest": "1.5.0"
+  }
+}
