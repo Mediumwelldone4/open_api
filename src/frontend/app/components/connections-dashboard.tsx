@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from "react";
 
-import type { ConnectionResponse, IngestionSummary } from "./connection-wizard";
+import type {
+  ConnectionResponse,
+  IngestionSummary,
+  VisualizationArtifact,
+} from "./connection-wizard";
 import { recommendPresets } from "./visualization-presets";
 import { VisualizationPreview } from "./visualization-preview";
 import { AiInsightsPanel } from "./ai-insights-panel";
@@ -94,6 +98,10 @@ export function ConnectionsDashboard({ connections, selectedId, onSelect, onHist
   const sampleTable = useMemo(() => buildSampleRows(selected?.last_ingestion_summary ?? null), [selected]);
   const presets = useMemo(
     () => recommendPresets(selected?.last_ingestion_summary ?? null),
+    [selected]
+  );
+  const visualizations: VisualizationArtifact[] = useMemo(
+    () => selected?.last_ingestion_summary?.visualizations ?? [],
     [selected]
   );
 
@@ -219,6 +227,34 @@ export function ConnectionsDashboard({ connections, selectedId, onSelect, onHist
                           </tbody>
                         </table>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {visualizations.length > 0 && (
+                  <div className="chart-block">
+                    <h4>Generated charts</h4>
+                    <div className="visualization-gallery">
+                      {visualizations.map((artifact, index) => (
+                        <figure
+                          key={`${artifact.column}-${artifact.chart_type}-${index}`}
+                          className="visualization-card"
+                        >
+                          <img
+                            src={`data:image/png;base64,${artifact.image_base64}`}
+                            alt={`${artifact.title} chart for ${artifact.column}`}
+                            loading="lazy"
+                          />
+                          <figcaption>
+                            <strong>{artifact.title}</strong>
+                            <span className="muted visualization-meta">
+                              {artifact.chart_type}
+                              {artifact.column ? ` • ${artifact.column}` : ""}
+                            </span>
+                            {artifact.description && <p>{artifact.description}</p>}
+                          </figcaption>
+                        </figure>
+                      ))}
                     </div>
                   </div>
                 )}

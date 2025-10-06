@@ -34,6 +34,14 @@ export type NumericSummary = {
   maximum: number | null;
 };
 
+export type VisualizationArtifact = {
+  column: string;
+  chart_type: string;
+  title: string;
+  image_base64: string;
+  description?: string | null;
+};
+
 export type IngestionSummary = {
   record_count: number | null;
   schema_fields: string[];
@@ -43,6 +51,7 @@ export type IngestionSummary = {
   categorical_summary: Record<string, { value: string; count: number }[]>;
   descriptive_stats: Record<string, Record<string, number | null>>;
   numeric_histograms: Record<string, { range: string; count: number }[]>;
+  visualizations?: VisualizationArtifact[];
 };
 
 export type IngestionJobResponse = {

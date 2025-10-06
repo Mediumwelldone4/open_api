@@ -84,26 +84,26 @@ class AnalysisService:
 
         bullet_points: list[str] = []
         if summary.record_count is not None:
-            bullet_points.append(f"- 기록 수: 약 {summary.record_count}건")
+            bullet_points.append(f"- Approximate records: {summary.record_count}")
 
         if summary.schema_fields:
             fields_preview = ", ".join(summary.schema_fields[:5])
             if len(summary.schema_fields) > 5:
-                fields_preview += " 외"
-            bullet_points.append(f"- 주요 필드: {fields_preview}")
+                fields_preview += " and more"
+            bullet_points.append(f"- Key fields: {fields_preview}")
 
         if summary.numeric_summary:
             metrics = ", ".join(sorted(summary.numeric_summary.keys())[:5])
-            bullet_points.append(f"- 수치 지표 필드: {metrics}")
+            bullet_points.append(f"- Numeric metrics: {metrics}")
 
-        bullet_text = "\n".join(bullet_points) if bullet_points else "- 수집된 요약 정보가 충분하지 않습니다."
+        bullet_text = "\n".join(bullet_points) if bullet_points else "- Not enough summary information available."
 
         return (
-            "[오프라인 모드] OpenAI API 키가 설정되지 않아 기본 분석 요약을 제공합니다.\n"
-            f"데이터셋: {connection.config.portal_name} / {connection.config.dataset_id}\n"
-            f"질문 요약: {question.strip()}\n"
-            f"요약 정보:\n{bullet_text}\n"
-            "실제 AI 기반 분석을 사용하려면 OPEN_DATA_OPENAI_API_KEY 환경 변수를 설정하세요."
+            "[Offline mode] OpenAI API key is missing. Showing a fallback summary.\n"
+            f"Dataset: {connection.config.portal_name} / {connection.config.dataset_id}\n"
+            f"Question: {question.strip()}\n"
+            f"Summary highlights:\n{bullet_text}\n"
+            "Set the OPEN_DATA_OPENAI_API_KEY environment variable to enable AI-powered analysis."
         )
 
     def _build_prompt(self, summary: IngestionSummary, question: str) -> str:
@@ -126,7 +126,7 @@ class AnalysisService:
             f"""
             Dataset overview:
             - Record count: {record_count}
-            - Schema details:\n{chr(10).join(schema_lines) if schema_lines else "  (제공되지 않음)"}
+            - Schema details:\n{chr(10).join(schema_lines) if schema_lines else "  (not provided)"}
             - Numeric summary: {numeric}
             - Categorical summary (top values): {categorical}
             - Sample records: {sample}

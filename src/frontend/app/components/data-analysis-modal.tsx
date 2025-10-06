@@ -206,6 +206,37 @@ function renderCategoricalCharts(summary: IngestionSummary) {
   );
 }
 
+function renderGeneratedVisuals(summary: IngestionSummary) {
+  const visualizations = summary.visualizations ?? [];
+  if (visualizations.length === 0) {
+    return <p className="muted">No generated charts available.</p>;
+  }
+  return (
+    <div className="visualization-gallery">
+      {visualizations.map((artifact, index) => (
+        <figure
+          key={`${artifact.column}-${artifact.chart_type}-${index}`}
+          className="visualization-card"
+        >
+          <img
+            src={`data:image/png;base64,${artifact.image_base64}`}
+            alt={`${artifact.title} chart for ${artifact.column}`}
+            loading="lazy"
+          />
+          <figcaption>
+            <strong>{artifact.title}</strong>
+            <span className="muted visualization-meta">
+              {artifact.chart_type}
+              {artifact.column ? ` • ${artifact.column}` : ""}
+            </span>
+            {artifact.description && <p>{artifact.description}</p>}
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 export function DataAnalysisModal({ open, onClose, summary }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Dataset Analysis">
@@ -234,6 +265,10 @@ export function DataAnalysisModal({ open, onClose, summary }: Props) {
           <section>
             <h4>Categorical distributions</h4>
             {renderCategoricalCharts(summary) ?? <p className="muted">No categorical distribution data.</p>}
+          </section>
+          <section>
+            <h4>Generated charts</h4>
+            {renderGeneratedVisuals(summary)}
           </section>
           <section>
             <h4>Descriptive statistics</h4>

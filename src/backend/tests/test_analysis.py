@@ -23,7 +23,7 @@ pytestmark = pytest.mark.anyio("asyncio")
 
 class FakeAnalysisService:
     async def analyze(self, *_, **__) -> str:  # noqa: ANN002, ANN003
-        return "요약된 데이터를 기반으로 추세를 검토하세요."
+        return "Review the trend based on the summarized data."
 
 
 repository = InMemoryConnectionRepository()
@@ -81,11 +81,11 @@ async def test_analysis_returns_answer_from_service() -> None:
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.post(
             f"/connections/{record.id}/analysis",
-            json={"question": "값의 추세를 요약해줘"},
+            json={"question": "Summarize the trend for me"},
         )
 
     assert response.status_code == status.HTTP_200_OK
-    assert "추세" in response.json()["answer"]
+    assert "trend" in response.json()["answer"].lower()
 
 
 async def test_analysis_requires_question() -> None:
@@ -147,9 +147,9 @@ async def test_analysis_service_provides_stub_without_api_key(monkeypatch) -> No
 
     service = AnalysisService()
     try:
-        answer = await service.analyze(record, "속도가 가장 높은 시간대를 알려줘")
+        answer = await service.analyze(record, "Tell me the hour with the highest speed")
     finally:
         get_settings.cache_clear()
 
-    assert "오프라인 모드" in answer
+    assert "Offline mode" in answer
     assert "OPEN_DATA_OPENAI_API_KEY" in answer

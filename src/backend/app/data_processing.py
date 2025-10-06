@@ -182,7 +182,7 @@ class DataProcessor:
         ax.set_xlabel(column)
         ax.set_ylabel("Frequency")
         encoded = self._encode_figure(fig)
-        description = "연속형 수치의 빈도 분포"
+        description = "Frequency distribution of continuous numeric values"
         return VisualizationArtifact(
             column=column,
             chart_type="histogram",
@@ -207,7 +207,7 @@ class DataProcessor:
         ax.set_xlabel("Frequency")
         ax.set_ylabel(column)
         encoded = self._encode_figure(fig)
-        description = "범주형 데이터의 상위 값 빈도"
+        description = "Top category value frequencies"
         return VisualizationArtifact(
             column=column,
             chart_type="bar",
@@ -233,7 +233,7 @@ class DataProcessor:
         ax.set_ylabel("Frequency")
         fig.autofmt_xdate()
         encoded = self._encode_figure(fig)
-        description = "날짜/시간 데이터의 일별 발생 추세"
+        description = "Daily occurrence trend for datetime field"
         return VisualizationArtifact(
             column=column,
             chart_type="line",
