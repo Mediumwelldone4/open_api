@@ -2,12 +2,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import router as connections_router
+from .settings import get_settings
+
+settings = get_settings()
 
 app = FastAPI(title="Open Data Insight Platform API")
 
+cors_origins = settings.allowed_origins or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
