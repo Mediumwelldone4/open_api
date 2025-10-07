@@ -115,19 +115,22 @@ export function VisualizationPreview({ summary, preset }: VisualizationPreviewPr
           const date = parseDate(record[field]);
           const numericFields = Object.entries(record)
             .filter(([, value]) => isNumeric(value))
-            .map(([key, value]) => ({ key, value: value as number }));
+            .map(([key, value]) => [key, value as number] as const);
           if (!date || numericFields.length === 0) return null;
           return {
             date,
             ...Object.fromEntries(numericFields),
-          };
+          } as { date: Date } & Record<string, number>;
         })
-        .filter((item): item is { date: Date; [key: string]: number | Date } => item !== null)
+        .filter((item): item is { date: Date } & Record<string, number> => item !== null)
         .sort((a, b) => (a.date as Date).getTime() - (b.date as Date).getTime())
         .map((item) => ({ ...item, dateLabel: (item.date as Date).toLocaleString() }));
 
       const numericKeys = summary.schema_fields.filter((key) =>
-        data.some((item) => isNumeric(item[key]))
+        data.some((item) => {
+          const record = item as Record<string, unknown>;
+          return isNumeric(record[key]);
+        })
       );
 
       if (data.length < 2 || numericKeys.length === 0) return null;
