@@ -117,9 +117,13 @@ export function VisualizationPreview({ summary, preset }: VisualizationPreviewPr
             .filter(([, value]) => isNumeric(value))
             .map(([key, value]) => [key, value as number] as const);
           if (!date || numericFields.length === 0) return null;
+          const numericValues = numericFields.reduce<Record<string, number>>((acc, [key, value]) => {
+            acc[key] = value;
+            return acc;
+          }, {});
           return {
             date,
-            ...Object.fromEntries(numericFields),
+            ...numericValues,
           } as { date: Date } & Record<string, number>;
         })
         .filter((item): item is { date: Date } & Record<string, number> => item !== null)
